@@ -12,11 +12,67 @@
 
 namespace keyboard_visibility {
 
+    class KeyboardVisibilityEventSink : public flutter::StreamHandler<flutter::EncodableValue> {
+    public:
+        std::unique_ptr <flutter::EventSink<flutter::EncodableValue>> onListen(
+                const flutter::EncodableValue &arguments,
+                std::shared_ptr <flutter::FlutterError> error) override {
+            event_sink_ = std::make_unique < flutter::EventSink < flutter::EncodableValue >> ();
+            StartMonitoring();
+            return std::move(event_sink_);
+        }
+
+        void onCancel(const flutter::EncodableValue &arguments) override {
+            StopMonitoring();
+            event_sink_.reset();
+        }
+
+    private:
+        void StartMonitoring() {
+            // Start a timer to periodically check keyboard visibility
+            timer_id_ = SetTimer(NULL, 0, 100, TimerProc, (DWORD_PTR)
+            this);
+        }
+
+        void StopMonitoring() {
+            KillTimer(NULL, timer_id_);
+        }
+
+        static VOID CALLBACK
+        TimerProc(HWND
+        hwnd,
+        UINT uMsg, UINT_PTR
+        idEvent,
+        DWORD dwTime
+        ) {
+            KeyboardVisibilityEventSink *sink = (KeyboardVisibilityEventSink *) idEvent;
+            sink->CheckKeyboardVisibility();
+        }
+
+        void CheckKeyboardVisibility() {
+            HWND hWnd = GetForegroundWindow();
+            if (hWnd) {
+                DWORD dwThreadId = GetWindowThreadProcessId(hWnd, NULL);
+                HKL hkl = GetKeyboardLayout(dwThreadId);
+                if (hkl) {
+                    UINT uFlags = GetKeyboardState(NULL);
+                    bool isVisible = (uFlags & KF_EXTENDED) != 0;
+                    if (event_sink_) {
+                        event_sink_->Success(flutter::EncodableValue(isVisible));
+                    }
+                }
+            }
+        }
+
+        std::unique_ptr <flutter::EventSink<flutter::EncodableValue>> event_sink_;
+        UINT_PTR timer_id_;
+    };
+
 // static
     void KeyboardVisibilityPlugin::RegisterWithRegistrar(
             flutter::PluginRegistrarWindows *registrar) {
         auto channel =
-                std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
+                std::make_unique < flutter::MethodChannel < flutter::EncodableValue >> (
                         registrar->messenger(), "keyboard_visibility",
                                 &flutter::StandardMethodCodec::GetInstance());
 
@@ -28,6 +84,15 @@ namespace keyboard_visibility {
                 });
 
         registrar->AddPlugin(std::move(plugin));
+
+        auto event_channel =
+                std::make_unique < flutter::EventChannel < flutter::EncodableValue >> (
+                        registrar->messenger(), "keyboard_visibility/events",
+                                &flutter::StandardMethodCodec::GetInstance());
+
+        auto event_sink = std::make_unique<KeyboardVisibilityEventSink>();
+
+        event_channel->SetStreamHandler(std::move(event_sink));
     }
 
     KeyboardVisibilityPlugin::KeyboardVisibilityPlugin() {}
@@ -35,25 +100,10 @@ namespace keyboard_visibility {
     KeyboardVisibilityPlugin::~KeyboardVisibilityPlugin() {}
 
     void KeyboardVisibilityPlugin::HandleMethodCall(
-            const flutter::MethodCall<flutter::EncodableValue> &method_call,
-            std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-        if (method_call.method_name().compare("isKeyboardVisible") == 0) {
-            HWND hWnd = GetForegroundWindow();
-            if (hWnd) {
-                DWORD dwThreadId = GetWindowThreadProcessId(hWnd, NULL);
-                HKL hkl = GetKeyboardLayout(dwThreadId);
-                if (hkl) {
-                    UINT uFlags = GetKeyboardState(NULL);
-                    if (uFlags & KF_EXTENDED) {
-                        result->Success(flutter::EncodableValue(true)); // Keyboard is open
-                        return;
-                    }
-                }
-            }
-            result->Success(flutter::EncodableValue(false)); // Keyboard is closed
-        } else {
-            result->NotImplemented();
-        }
+            const flutter::MethodCall <flutter::EncodableValue> &method_call,
+            std::unique_ptr <flutter::MethodResult<flutter::EncodableValue>> result) {
+        // This plugin doesn't implement any methods
+        result->NotImplemented();
     }
 
 }  // namespace keyboard_visibility
