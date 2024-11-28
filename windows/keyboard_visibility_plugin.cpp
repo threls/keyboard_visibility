@@ -4,7 +4,6 @@
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
 #include <flutter/event_channel.h>
-#include <flutter/flutter_error.h>
 
 
 #include <map>
@@ -18,8 +17,7 @@ namespace keyboard_visibility {
     class KeyboardVisibilityEventSink : public flutter::StreamHandler<flutter::EncodableValue> {
     public:
         std::unique_ptr <flutter::EventSink<flutter::EncodableValue>> onListen(
-                const flutter::EncodableValue &arguments,
-                std::shared_ptr <flutter::FlutterError> error) override {
+                const flutter::EncodableValue &arguments) override {
             event_sink_ = std::make_unique < flutter::EventSink < flutter::EncodableValue >> ();
             StartMonitoring();
             return std::move(event_sink_);
