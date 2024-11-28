@@ -15,9 +15,9 @@ namespace keyboard_visibility {
 
     class KeyboardVisibilityEventSink : public flutter::StreamHandler<flutter::EncodableValue> {
     public:
-        std::unique_ptr <flutter::EventSink<flutter::EncodableValue>> onListen(
+        std::unique_ptr<StreamHandlerError<T>> OnListen(
                 const flutter::EncodableValue &arguments,
-                std::unique_ptr<flutter::EventSink<flutter::EncodableValue>> &&events) override {
+                std::unique_ptr<flutter::EventSink<>> &&events) {
             event_sink_ = std::make_unique < flutter::EventSink < flutter::EncodableValue >> ();
             StartMonitoring();
             return std::move(event_sink_);
